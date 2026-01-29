@@ -1,0 +1,104 @@
+/**
+ * RE Automation GmbH - 2026
+ * Ari Dashboard - Global Styles
+ *
+ * Design System: RE Neutral (based on MultiFab Control)
+ * Font: Geist Sans + Geist Mono
+ * Accent: RE Green (HSL 81 44% 39%)
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ========================================
+   * Light Theme (Default)
+   * Pure Neutral Grey - RE Automation
+   * ======================================== */
+  :root {
+    --background: 0 0% 96%;
+    --foreground: 0 0% 19%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 13%;
+    --primary: 81 44% 39%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 92%;
+    --secondary-foreground: 0 0% 29%;
+    --muted: 0 0% 92%;
+    --muted-foreground: 0 0% 46%;
+    --accent: 0 0% 92%;
+    --accent-foreground: 0 0% 13%;
+    --destructive: 0 86% 61%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 88%;
+    --input: 0 0% 83%;
+    --ring: 81 44% 39%;
+
+    /* Font families */
+    --font-sans: 'Geist', 'Geist Fallback', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'Geist Mono', 'Geist Mono Fallback', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+    --radius: 0.5rem;
+
+    /* Custom shadow scale (Linear-inspired, multi-layered) */
+    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.03);
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.04), 0 1px 2px -1px hsl(0 0% 0% / 0.04);
+    --shadow: 0 1px 3px 0 hsl(0 0% 0% / 0.06), 0 2px 6px -1px hsl(0 0% 0% / 0.06);
+    --shadow-md: 0 2px 4px 0 hsl(0 0% 0% / 0.06), 0 4px 12px -2px hsl(0 0% 0% / 0.08);
+    --shadow-lg: 0 4px 6px 0 hsl(0 0% 0% / 0.06), 0 8px 24px -4px hsl(0 0% 0% / 0.10);
+    --shadow-xl: 0 8px 12px 0 hsl(0 0% 0% / 0.06), 0 16px 40px -6px hsl(0 0% 0% / 0.12);
+  }
+
+  /* ========================================
+   * Dark Theme
+   * Pure Neutral Grey - RE Automation
+   * (based on MultiFab Control dark theme)
+   * ======================================== */
+  .dark {
+    --background: 0 0% 10%;
+    --foreground: 0 0% 75%;
+    --card: 0 0% 13%;
+    --card-foreground: 0 0% 96%;
+    --popover: 0 0% 13%;
+    --popover-foreground: 0 0% 89%;
+    --primary: 81 44% 39%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 85%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 55%;
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 86% 61%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 25%;
+    --ring: 81 44% 39%;
+
+    /* Shadows lighter in dark mode */
+    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.10);
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.15), 0 1px 2px -1px hsl(0 0% 0% / 0.15);
+    --shadow: 0 1px 3px 0 hsl(0 0% 0% / 0.20), 0 2px 6px -1px hsl(0 0% 0% / 0.20);
+    --shadow-md: 0 2px 4px 0 hsl(0 0% 0% / 0.20), 0 4px 12px -2px hsl(0 0% 0% / 0.25);
+    --shadow-lg: 0 4px 6px 0 hsl(0 0% 0% / 0.20), 0 8px 24px -4px hsl(0 0% 0% / 0.30);
+    --shadow-xl: 0 8px 12px 0 hsl(0 0% 0% / 0.20), 0 16px 40px -6px hsl(0 0% 0% / 0.35);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    margin: 0;
+    height: 100vh;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}

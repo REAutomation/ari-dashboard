@@ -1,321 +1,195 @@
-# CLAUDE.md - Ari Dashboard Development Guide
+# CLAUDE.md - Ari Dashboard Session Recovery
 
-> **WICHTIG**: Diese Datei ist die zentrale Anleitung für KI-Agenten die am Ari Dashboard arbeiten.
+> Kompakte Referenz für KI-Agenten. Details in `docs/`.
 
 ---
 
-## 📁 Repository-Struktur
+## Aktueller Status
+
+**Stand:** 2026-01-29
+**Phase:** PoC abgeschlossen + Phase 2 (Sidebar, Presets, Auto-Scaling) implementiert
+**Services laufen auf:**
+- Frontend: http://localhost:5173 (Netzwerk: http://192.168.2.70:5173)
+- Backend: http://localhost:3001 (Netzwerk: http://192.168.2.70:3001)
+- Port 3000 belegt durch Open WebUI!
+
+---
+
+## Projekt-Übersicht
+
+Ari Dashboard = Visuelles Interface für den Moltbot AI-Assistenten "Ari".
+Läuft permanent auf einem TV-Display in der Firma RE Automation GmbH.
+
+**Zweck:** Ari zeigt Dateien, HTML-Artefakte, Notizen, Status an. Alles API-gesteuert.
+
+---
+
+## Repo-Struktur (aktuell)
 
 ```
 ari-dashboard/
-├── frontend/                     # React + TypeScript Frontend
+├── frontend/                     # React 18 + TypeScript + Vite 5
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── widgets/         # Dashboard Widgets
-│   │   │   │   ├── DockerWidget.tsx
-│   │   │   │   ├── CPUWidget.tsx
-│   │   │   │   ├── ChartWidget.tsx
-│   │   │   │   └── TextWidget.tsx
-│   │   │   ├── Dashboard.tsx    # Haupt-Dashboard Layout
-│   │   │   └── WidgetContainer.tsx
-│   │   ├── lib/
-│   │   │   └── socket.ts        # Socket.io Client
-│   │   ├── types/
-│   │   │   └── widget.ts        # TypeScript Types
+│   │   │   ├── widgets/         # HomeWidget, TextWidget, FileViewerWidget, HTMLRendererWidget
+│   │   │   ├── sidebar/         # AriAvatar, TaskList, ActivityFeed
+│   │   │   ├── ui/              # Card, Badge (shadcn/ui)
+│   │   │   ├── Dashboard.tsx    # Grid-Layout + Sidebar
+│   │   │   ├── Header.tsx       # Logo, Theme-Toggle, Display-Mode-Toggle, Clock
+│   │   │   ├── Sidebar.tsx      # Ari Status-Sidebar (erweitert/minimiert)
+│   │   │   ├── WidgetContainer.tsx
+│   │   │   ├── AutoScaleWrapper.tsx  # Widget-Content Skalierung
+│   │   │   └── DisplayModeProvider.tsx
+│   │   ├── hooks/               # useSocket, useTheme, useSidebar, useDisplayMode
+│   │   ├── lib/                 # api.ts, socket.ts, utils.ts
+│   │   ├── types/widget.ts
 │   │   ├── App.tsx
 │   │   └── main.tsx
-│   ├── public/
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── vite.config.ts
-│   └── Dockerfile
+│   ├── public/assets/
+│   │   ├── re-automation-logo.svg
+│   │   └── avatars/             # donkey_*.png, goat_*.png (4 Zustände je)
+│   └── .env                     # VITE_API_URL, VITE_WS_URL
 │
-├── backend/                      # Node.js + Express API
+├── backend/                      # Node.js 20 + Express + Socket.io
 │   ├── src/
-│   │   ├── api/                 # REST Endpoints
-│   │   │   ├── widgets.ts       # Widget CRUD
-│   │   │   └── health.ts        # Health Check
-│   │   ├── services/            # Business Logic
-│   │   │   ├── widgetService.ts
-│   │   │   └── socketService.ts
-│   │   ├── types/
-│   │   │   └── widget.ts        # TypeScript Types
-│   │   └── index.ts             # Entry Point
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── Dockerfile
+│   │   ├── api/                 # widgets.ts, files.ts, health.ts, status.ts, feed.ts
+│   │   ├── services/            # widgetStore, fileStore, statusStore, feedStore, socketService
+│   │   ├── types/widget.ts
+│   │   └── index.ts
+│   ├── uploads/                 # File-Upload Verzeichnis
+│   └── .env                     # PORT=3001, CORS_ORIGIN=...
 │
-├── docker-compose.yml
-├── .gitignore
-├── CLAUDE.md                     # Diese Datei
-└── README.md                     # Projekt-Übersicht
+├── assets/ari-avatars/          # Original Avatar-PNGs (Quelldateien)
+├── docs/
+│   ├── spec-01-poc-definition.md    # PoC Spezifikation (v2.0)
+│   └── spec-02-phase2-discussion.md # Phase 2 Besprechungspunkte
+└── CLAUDE.md                    # Diese Datei
 ```
 
 ---
 
-## 🎯 Projekt-Übersicht
+## Tech Stack
 
-**Ari Dashboard** ist ein React-basiertes, API-gesteuertes Dashboard-System für den Moltbot AI-Assistenten "Ari".
-
-### Hauptfunktionen:
-- **Widget-basiertes Layout**: Mehrere Bereiche gleichzeitig anzeigen
-- **Echtzeit-Updates**: Via WebSocket (Socket.io)
-- **API-Steuerung**: Ari kann Widgets erstellen/aktualisieren via REST API
-- **Responsive**: Optimiert für große TV-Displays
-- **Typsicher**: TypeScript in Frontend und Backend
+- **Frontend:** React 18, TypeScript 5, Vite 5, Tailwind 3, shadcn/ui, Socket.io Client, lucide-react, react-markdown
+- **Backend:** Node.js 20, Express 4, TypeScript 5, Socket.io 4, multer
+- **Design:** Geist Font, RE Automation Farbsystem (neutrale Grautöne, grüner Akzent HSL 81 44% 39%)
+- **Speicherung:** In-Memory (keine DB - persistente Speicherung zurückgestellt)
 
 ---
 
-## 🔧 Tech Stack
+## API Endpoints
 
-| Bereich | Technologie | Version | Warum |
-|---------|-------------|---------|-------|
-| **Frontend** | React | 18.x | Modern, bewährt |
-| | TypeScript | 5.x | Typsicherheit |
-| | Vite | 5.x | Schnelles Build-Tool |
-| | Tailwind CSS | 3.x | Utility-first Styling |
-| | React-Grid-Layout | 1.x | Drag & Drop Widgets |
-| | Socket.io Client | 4.x | WebSocket |
-| | Chart.js / Recharts | - | Diagramme |
-| **Backend** | Node.js | 20.x | JavaScript Runtime |
-| | Express | 4.x | Web Framework |
-| | TypeScript | 5.x | Typsicherheit |
-| | Socket.io | 4.x | WebSocket Server |
-| **Deployment** | Docker | - | Containerisierung |
-| | docker-compose | - | Multi-Container Setup |
-
----
-
-## 🚀 Getting Started
-
-### Development (Lokal)
-
-```bash
-# Frontend
-cd frontend
-npm install
-npm run dev       # http://localhost:5173
-
-# Backend
-cd backend
-npm install
-npm run dev       # http://localhost:3000
+### Widgets
+```
+GET    /api/widgets          - Alle Widgets
+POST   /api/widgets          - Widget erstellen
+PUT    /api/widgets/:id      - Widget aktualisieren
+DELETE /api/widgets/:id      - Widget löschen
 ```
 
-### Production (Docker)
-
-```bash
-docker-compose up -d
-
-# Frontend: http://localhost:8080
-# Backend API: http://localhost:3000
+### Files
+```
+POST   /api/files/upload     - Datei hochladen (multipart/form-data)
+GET    /api/files/:id        - Datei herunterladen
 ```
 
----
+### Ari Status (NEU)
+```
+GET    /api/status           - Aktuellen Status abrufen
+PUT    /api/status           - Status setzen (state, message, activeTasks)
+```
 
-## 📡 API Endpoints
+### Activity Feed
+```
+GET    /api/feed?limit=50    - Feed-Einträge (newest first)
+POST   /api/feed             - Neuer Feed-Eintrag (type, message, details?)
+```
 
-### Widget-Management
-
-```bash
-# Widget erstellen
-POST /api/widgets
-{
-  "type": "chart|text|status|code",
-  "title": "Widget Title",
-  "data": { ... },
-  "position": { x: 0, y: 0, w: 4, h: 2 }
-}
-
-# Widget aktualisieren
-PUT /api/widgets/:id
-{
-  "data": { ... }
-}
-
-# Alle Widgets abrufen
-GET /api/widgets
-
-# Widget löschen
-DELETE /api/widgets/:id
-
-# Dashboard-Layout speichern
-POST /api/layout
-{
-  "widgets": [ ... ]
-}
+### Presets (NEU)
+```
+GET    /api/presets              - Alle Presets auflisten
+GET    /api/presets/:name        - Preset abrufen
+GET    /api/presets/default      - Default-Preset abrufen
+POST   /api/presets              - Preset erstellen/aktualisieren
+PUT    /api/presets/activate/:name - Preset aktivieren (lädt Widgets)
+DELETE /api/presets/:name        - Preset löschen
 ```
 
 ### WebSocket Events
-
-```javascript
-// Server → Client
-socket.emit('widget:created', { id, type, data });
-socket.emit('widget:updated', { id, data });
-socket.emit('widget:deleted', { id });
-
-// Client → Server
-socket.emit('widget:subscribe', { widgetId });
+```
+widget:created, widget:updated, widget:deleted
+status:updated, feed:new
+preset:activated
 ```
 
 ---
 
-## 🧩 Widget Types
+## Widget-Typen
 
-| Type | Beschreibung | Daten-Format |
-|------|--------------|--------------|
-| **text** | Einfacher Text/Markdown | `{ content: string }` |
-| **chart** | Chart.js Diagramm | `{ type, labels, datasets }` |
-| **status** | Status-Anzeige (Docker, CPU, etc.) | `{ items: [{ name, status, value }] }` |
-| **code** | Code-Block mit Syntax-Highlighting | `{ language, code }` |
-| **image** | Bild/Screenshot | `{ url }` |
-| **iframe** | Externe URL einbetten | `{ url }` |
-
----
-
-## 🔗 Integration mit Moltbot (Ari)
-
-Ari kann via Moltbot Skill das Dashboard steuern:
-
-```javascript
-// Moltbot Skill Definition (in ~/clawd/skills/dashboard/)
-{
-  "name": "dashboard",
-  "tools": [
-    {
-      "name": "show_chart",
-      "url": "http://192.168.2.70:3000/api/widgets",
-      "method": "POST",
-      "schema": { ... }
-    },
-    {
-      "name": "update_widget",
-      "url": "http://192.168.2.70:3000/api/widgets/{id}",
-      "method": "PUT"
-    }
-  ]
-}
-```
+| Type | Beschreibung |
+|------|-------------|
+| `home` | Startseite mit Greeting, Status, Info-Items |
+| `text` | Markdown-Text mit Varianten (info/warning/success/error) |
+| `file` | Datei-Viewer (image, pdf, excel/csv) |
+| `html` | HTML/SVG-Renderer (sandboxed iframe) |
+| `weather` | Wetter-Widget mit OpenWeatherMap API |
 
 ---
 
-## 🎨 Styling Guidelines
+## Letzte Schritte
 
-- **Tailwind CSS**: Utility-first approach
-- **Dark Mode**: Dashboard läuft im Dark Mode (für TV-Display)
-- **Responsive**: Grid-Layout passt sich an
-- **Animationen**: Smooth transitions für Updates
-
----
-
-## 🧪 Testing
-
-```bash
-# Frontend Tests
-cd frontend
-npm run test
-
-# Backend Tests
-cd backend
-npm run test
-
-# E2E Tests
-npm run test:e2e
-```
+1. PoC implementiert: 4 Widget-Typen, REST API, WebSocket, CSS Grid
+2. Design-Refresh: RE Automation Farbsystem (MultiFab), Geist Font, Linear-Shadows, Logo
+3. Light/Dark Theme-Toggle mit localStorage
+4. Ari Sidebar implementiert: Avatar (Donkey/Goat umschaltbar), TaskList, ActivityFeed
+5. JSON-Persistenz: Widgets + Presets überleben Backend-Neustarts
+6. Preset-System: API zum Speichern/Laden/Aktivieren von Dashboard-Layouts
+7. Wetter-Widget: OpenWeatherMap API, Standort Stuttgart Bad Cannstatt
+8. Briefing-Button im Header: Lädt das Default-Preset "briefing"
+9. Briefing-Preset erstellt: Wetter + Willkommen-Text + Ari-Status
+10. **Auto-Scaling** (Punkt 3): Display-Modus (auto-scale) vs. Interaktiv-Modus (scroll)
+    - Global Toggle im Header (Monitor/Maus-Icon)
+    - Per-Widget Toggle (Maximize-Button bei skaliertem Content)
+    - `widget.scrollable` Feld für API-gesteuerten Scroll-Modus
 
 ---
 
-## 📦 Deployment
+## Nächste Schritte
 
-### Auf Ubuntu-Docker VM (192.168.2.70)
-
-```bash
-cd /home/ubuntu/ari-dashboard
-git pull
-docker-compose down
-docker-compose up -d --build
-
-# Logs anschauen
-docker-compose logs -f
-```
-
-### URL im Netzwerk
-- **Dashboard**: http://192.168.2.70:8080
-- **API**: http://192.168.2.70:3000
-- **Health Check**: http://192.168.2.70:3000/health
+1. **Ari-Avatar finalisieren**: Hintergründe sauber freistellen, bessere "Agents"-Variante
+2. **Meeting-Preset** erstellen: Layout für Besprechungen (Notizen, Präsentation)
+3. **Ari-Integration testen**: Briefing mit echten Daten (Kalender, Todos, News)
+4. **Docker Deployment** (wenn Stand gut ist)
 
 ---
 
-## 🔒 Security
+## Offene Entscheidungen
 
-- **Kein Auth nötig**: Läuft nur im internen Netzwerk (192.168.2.x)
-- **CORS**: Nur localhost und 192.168.2.x erlaubt
-- **Rate Limiting**: API hat Rate Limits
-
----
-
-## 📝 Konventionen
-
-### Code Style
-- **TypeScript**: Strict Mode
-- **ESLint**: Airbnb Config
-- **Prettier**: Auto-Formatting
-- **Naming**: camelCase für Variablen, PascalCase für Components
-
-### Git Commits
-```
-feat: Add DockerWidget component
-fix: WebSocket reconnection bug
-docs: Update API documentation
-refactor: Simplify widget state management
-```
-
-### Branch Strategy
-- `main`: Production-ready Code
-- `develop`: Development Branch
-- `feature/*`: Feature Branches
+Siehe `docs/spec-02-phase2-discussion.md`:
+- Canvas-Widget (zurückgestellt)
+- Persistenz-Technologie (SQLite tendenz, JSON aktuell ausreichend)
+- Ari Avatar final (Bilder noch nicht final, Gemini-Limit erreicht)
 
 ---
 
-## 🐛 Troubleshooting
+## Lessons Learned
 
-### Frontend startet nicht
-```bash
-cd frontend
-rm -rf node_modules package-lock.json
-npm install
-npm run dev
-```
-
-### WebSocket Connection Failed
-- Prüfe ob Backend läuft: `curl http://localhost:3000/health`
-- Prüfe CORS-Einstellungen in `backend/src/index.ts`
-
-### Docker Build Fehler
-```bash
-docker-compose down
-docker system prune -a
-docker-compose up -d --build
-```
+- Port 3000 ist durch Open WebUI belegt → Backend auf 3001
+- Socket.io braucht `http://` nicht `ws://` als URL
+- CSS Grid: `auto-rows-[200px]` verursacht Scroll auf TV → `repeat(rows, 1fr)` + `calc(100vh - ...)` nutzen
+- `body { overflow: hidden }` für TV-Display (kein Scroll)
+- Frontend-Types müssen exakt zum Backend passen (file_viewer→file, html_renderer→html)
+- Agenten erstellen manchmal überflüssige .md Dateien → nach Agent-Run aufräumen
 
 ---
 
-## 📚 Wichtige Links
+## Konventionen
 
-- **GitHub Repo**: https://github.com/REAutomation/ari-dashboard
-- **Moltbot Repo**: https://github.com/moltbot/moltbot
-- **IT-Infrastructure Repo**: https://github.com/REAutomation/internal-it-infrastructure
-- **React Docs**: https://react.dev/
-- **Socket.io Docs**: https://socket.io/docs/
-- **Tailwind Docs**: https://tailwindcss.com/docs
+- **Sprache:** Antworten Deutsch, Code/Variablen/Kommentare Englisch
+- **Header:** Alle Quelldateien mit `RE Automation GmbH - 2026` + Beschreibung
+- **Agenten:** Sonnet zum Coden nutzen, klare Anweisungen, Arbeit prüfen
+- **NIEMALS:** `killall node` (beendet Claude Code), Port 3000 nutzen, Platzhalter/Mocks ohne Anweisung
 
 ---
 
-## 🤝 Contributing
-
-Siehe `README.md` für Contribution Guidelines.
-
----
-
-*Stand: Januar 2026*
-*Entwickelt für Rentschler Engineering & Automation*
+*Aktualisiert: 2026-01-29 09:20*
