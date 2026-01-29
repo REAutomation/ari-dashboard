@@ -1,39 +1,65 @@
 /**
  * RE Automation GmbH - 2026
- * Ari Dashboard - Weather widget component
+ * Ari Dashboard - Weather widget using Open-Meteo (free, no API key)
  */
 
 import { useEffect, useState } from 'react';
-import { Cloud, Droplets, Wind, Loader2 } from 'lucide-react';
+import { Cloud, Droplets, Wind, Loader2, Sun, CloudRain, CloudSnow, CloudFog, CloudLightning } from 'lucide-react';
 import type { WeatherWidgetData } from '@/types/widget';
 
 interface WeatherWidgetProps {
   data: WeatherWidgetData;
 }
 
-interface WeatherData {
-  main: {
-    temp: number;
-    feels_like: number;
-    humidity: number;
+interface OpenMeteoData {
+  current: {
+    temperature_2m: number;
+    weather_code: number;
+    relative_humidity_2m: number;
+    wind_speed_10m: number;
   };
-  weather: Array<{
-    main: string;
-    description: string;
-    icon: string;
-  }>;
-  wind: {
-    speed: number;
-  };
-  name: string;
 }
 
+// WMO Weather codes mapping
+const weatherCodes: Record<number, { description: string; icon: 'sun' | 'cloud' | 'rain' | 'snow' | 'fog' | 'thunder' }> = {
+  0: { description: 'Klar', icon: 'sun' },
+  1: { description: 'Überwiegend klar', icon: 'sun' },
+  2: { description: 'Teilweise bewölkt', icon: 'cloud' },
+  3: { description: 'Bewölkt', icon: 'cloud' },
+  45: { description: 'Nebel', icon: 'fog' },
+  48: { description: 'Nebel mit Reif', icon: 'fog' },
+  51: { description: 'Leichter Nieselregen', icon: 'rain' },
+  53: { description: 'Nieselregen', icon: 'rain' },
+  55: { description: 'Starker Nieselregen', icon: 'rain' },
+  61: { description: 'Leichter Regen', icon: 'rain' },
+  63: { description: 'Regen', icon: 'rain' },
+  65: { description: 'Starker Regen', icon: 'rain' },
+  71: { description: 'Leichter Schneefall', icon: 'snow' },
+  73: { description: 'Schneefall', icon: 'snow' },
+  75: { description: 'Starker Schneefall', icon: 'snow' },
+  77: { description: 'Schneegriesel', icon: 'snow' },
+  80: { description: 'Leichte Regenschauer', icon: 'rain' },
+  81: { description: 'Regenschauer', icon: 'rain' },
+  82: { description: 'Starke Regenschauer', icon: 'rain' },
+  85: { description: 'Leichte Schneeschauer', icon: 'snow' },
+  86: { description: 'Schneeschauer', icon: 'snow' },
+  95: { description: 'Gewitter', icon: 'thunder' },
+  96: { description: 'Gewitter mit Hagel', icon: 'thunder' },
+  99: { description: 'Schweres Gewitter', icon: 'thunder' },
+};
+
+// Coordinates for common locations (can be extended)
+const locationCoords: Record<string, { lat: number; lon: number }> = {
+  '70372': { lat: 48.8058, lon: 9.2140 }, // Stuttgart Bad Cannstatt
+  '70173': { lat: 48.7758, lon: 9.1829 }, // Stuttgart Mitte
+  '88471': { lat: 48.2135, lon: 9.8786 }, // Laupheim
+};
+
 export function WeatherWidget({ data }: WeatherWidgetProps) {
-  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [weather, setWeather] = useState<OpenMeteoData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const apiKey = data.apiKey || 'bd5e378503939ddaee76f12ad7a97608';
   const units = data.units || 'metric';
 
   const fetchWeather = async () => {
@@ -41,7 +67,10 @@ export function WeatherWidget({ data }: WeatherWidgetProps) {
       setLoading(true);
       setError(null);
 
-      const url = `https://api.openweathermap.org/data/2.5/weather?zip=${data.zipCode},de&appid=${apiKey}&units=${units}&lang=de`;
+      // Get coordinates from zipCode or use Stuttgart as default
+      const coords = locationCoords[data.zipCode] || locationCoords['70372'];
+
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=Europe/Berlin`;
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -67,7 +96,31 @@ export function WeatherWidget({ data }: WeatherWidgetProps) {
     }, 10 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, [data.zipCode, apiKey, units]);
+  }, [data.zipCode, units]);
+
+  const getWeatherIcon = (code: number) => {
+    const info = weatherCodes[code] || { description: 'Unbekannt', icon: 'cloud' };
+    const iconClass = "w-16 h-16 text-primary";
+
+    switch (info.icon) {
+      case 'sun':
+        return <Sun className={`${iconClass} text-yellow-500`} />;
+      case 'rain':
+        return <CloudRain className={`${iconClass} text-blue-500`} />;
+      case 'snow':
+        return <CloudSnow className={`${iconClass} text-slate-400`} />;
+      case 'fog':
+        return <CloudFog className={`${iconClass} text-slate-400`} />;
+      case 'thunder':
+        return <CloudLightning className={`${iconClass} text-yellow-600`} />;
+      default:
+        return <Cloud className={`${iconClass} text-slate-400`} />;
+    }
+  };
+
+  const getWeatherDescription = (code: number) => {
+    return weatherCodes[code]?.description || 'Unbekannt';
+  };
 
   if (loading) {
     return (
@@ -91,33 +144,28 @@ export function WeatherWidget({ data }: WeatherWidgetProps) {
     );
   }
 
-  const iconUrl = `https://openweathermap.org/img/wn/${weather.weather[0].icon}@2x.png`;
+  const temp = weather.current.temperature_2m;
   const tempUnit = units === 'metric' ? '°C' : '°F';
-  const speedUnit = units === 'metric' ? 'km/h' : 'mph';
-  const windSpeed = units === 'metric' ? (weather.wind.speed * 3.6).toFixed(1) : weather.wind.speed.toFixed(1);
+  const displayTemp = units === 'metric' ? temp : (temp * 9/5) + 32;
 
   return (
     <div className="h-full flex flex-col items-center justify-center p-6 space-y-4">
       {/* Main weather display */}
       <div className="flex items-center space-x-4">
-        <img
-          src={iconUrl}
-          alt={weather.weather[0].description}
-          className="w-24 h-24 drop-shadow-md"
-        />
+        {getWeatherIcon(weather.current.weather_code)}
         <div className="text-center">
           <div className="text-6xl font-bold tracking-tight">
-            {Math.round(weather.main.temp)}{tempUnit}
+            {Math.round(displayTemp)}{tempUnit}
           </div>
           <div className="text-lg text-muted-foreground capitalize mt-1">
-            {weather.weather[0].description}
+            {getWeatherDescription(weather.current.weather_code)}
           </div>
         </div>
       </div>
 
       {/* Location */}
       <div className="text-xl font-medium text-muted-foreground">
-        {data.location || weather.name}
+        {data.location || 'Stuttgart'}
       </div>
 
       {/* Divider */}
@@ -126,18 +174,11 @@ export function WeatherWidget({ data }: WeatherWidgetProps) {
       {/* Details */}
       <div className="w-full space-y-3">
         <div className="flex items-center justify-between px-4">
-          <span className="text-sm text-muted-foreground">Gefühlt:</span>
-          <span className="text-sm font-medium">
-            {Math.round(weather.main.feels_like)}{tempUnit}
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between px-4">
           <div className="flex items-center space-x-2">
             <Droplets className="w-4 h-4 text-blue-500" />
             <span className="text-sm text-muted-foreground">Luftfeuchtigkeit:</span>
           </div>
-          <span className="text-sm font-medium">{weather.main.humidity}%</span>
+          <span className="text-sm font-medium">{weather.current.relative_humidity_2m}%</span>
         </div>
 
         <div className="flex items-center justify-between px-4">
@@ -146,7 +187,7 @@ export function WeatherWidget({ data }: WeatherWidgetProps) {
             <span className="text-sm text-muted-foreground">Wind:</span>
           </div>
           <span className="text-sm font-medium">
-            {windSpeed} {speedUnit}
+            {weather.current.wind_speed_10m.toFixed(1)} km/h
           </span>
         </div>
       </div>
