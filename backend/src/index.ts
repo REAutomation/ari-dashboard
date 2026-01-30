@@ -15,6 +15,7 @@ import filesRouter from './api/files';
 import statusRouter from './api/status';
 import feedRouter from './api/feed';
 import presetsRouter from './api/presets';
+import docsRouter from './api/docs';
 import { socketService } from './services/socketService';
 import { PersistenceService } from './services/persistenceService';
 
@@ -50,6 +51,7 @@ app.use('/api/files', filesRouter);
 app.use('/api/status', statusRouter);
 app.use('/api/feed', feedRouter);
 app.use('/api/presets', presetsRouter);
+app.use('/api/docs', docsRouter);
 
 const httpServer = createServer(app);
 

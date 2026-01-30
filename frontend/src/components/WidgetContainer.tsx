@@ -26,8 +26,8 @@ interface WidgetContainerProps {
   widget: Widget;
 }
 
-// Widgets that benefit from auto-scaling
-const SCALABLE_WIDGETS = ['text', 'home', 'html', 'file', 'news'];
+// Widgets that benefit from auto-scaling (file/html excluded - iframes need direct rendering)
+const SCALABLE_WIDGETS = ['text', 'home', 'news'];
 
 export function WidgetContainer({ widget }: WidgetContainerProps) {
   const renderWidget = () => {
@@ -84,7 +84,7 @@ export function WidgetContainer({ widget }: WidgetContainerProps) {
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 min-h-0">
+      <CardContent className="flex-1 min-h-0 flex flex-col">
         {shouldScale ? (
           <AutoScaleWrapper
             widgetId={widget.id}
@@ -93,7 +93,9 @@ export function WidgetContainer({ widget }: WidgetContainerProps) {
             {renderWidget()}
           </AutoScaleWrapper>
         ) : (
-          renderWidget()
+          <div className="h-full w-full flex-1 min-h-0">
+            {renderWidget()}
+          </div>
         )}
       </CardContent>
     </Card>

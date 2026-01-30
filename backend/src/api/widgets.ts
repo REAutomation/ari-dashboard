@@ -100,4 +100,85 @@ router.delete('/:id', (req: Request, res: Response) => {
   }
 });
 
+// Focus mode: Show single widget full-screen, backup current state
+let focusBackup: { widgets: any[] } | null = null;
+
+router.post('/focus/:id', (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const widget = widgetStore.getById(id);
+
+    if (!widget) {
+      return res.status(404).json({ error: 'Widget not found' });
+    }
+
+    // Backup current widgets
+    focusBackup = { widgets: widgetStore.getAll() };
+
+    // Delete all widgets except the focused one
+    const allWidgets = widgetStore.getAll();
+    allWidgets.forEach(w => {
+      if (w.id !== id) {
+        widgetStore.delete(w.id);
+        socketService.emitWidgetDeleted(w.id);
+      }
+    });
+
+    // Make focused widget full-screen
+    const updatedWidget = widgetStore.update(id, {
+      position: { x: 0, y: 0, w: 12, h: 4 }
+    });
+
+    if (updatedWidget) {
+      socketService.emitWidgetUpdated(updatedWidget);
+    }
+
+    res.json({
+      success: true,
+      message: `Widget "${widget.title}" is now in focus mode`,
+      widget: updatedWidget
+    });
+  } catch (error) {
+    console.error('[WidgetsAPI] Error focusing widget:', error);
+    res.status(500).json({ error: 'Failed to focus widget' });
+  }
+});
+
+router.post('/unfocus', (req: Request, res: Response) => {
+  try {
+    if (!focusBackup) {
+      return res.status(400).json({ error: 'No focus backup available. Use /api/presets/activate/briefing instead.' });
+    }
+
+    // Clear current widgets
+    const currentWidgets = widgetStore.getAll();
+    currentWidgets.forEach(w => {
+      widgetStore.delete(w.id);
+      socketService.emitWidgetDeleted(w.id);
+    });
+
+    // Restore backed up widgets
+    focusBackup.widgets.forEach(w => {
+      const restored = widgetStore.create({
+        type: w.type,
+        title: w.title,
+        data: w.data,
+        position: w.position,
+        scrollable: w.scrollable
+      });
+      socketService.emitWidgetCreated(restored);
+    });
+
+    focusBackup = null;
+
+    res.json({
+      success: true,
+      message: 'Focus mode ended, previous layout restored'
+    });
+  } catch (error) {
+    console.error('[WidgetsAPI] Error unfocusing:', error);
+    res.status(500).json({ error: 'Failed to unfocus' });
+  }
+});
+
 export default router;
